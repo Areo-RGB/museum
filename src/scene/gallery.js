@@ -240,7 +240,7 @@ export async function buildGallery(renderer) {
     const roomSlots = [];
 
     // Three frames on the outer wall.
-    [-2.5, 0, 2.5].forEach((offset, i) => {
+    [-2.8, 0, 2.8].forEach((offset, i) => {
       roomSlots.push({
         id: `${room.id}-outer-${i + 1}`,
         pos: new THREE.Vector3(
@@ -248,7 +248,7 @@ export async function buildGallery(renderer) {
           2.42,
           room.z + offset
         ),
-        rotY: room.side === 'left' ? -Math.PI / 2 : Math.PI / 2,
+        rotY: room.side === 'left' ? Math.PI / 2 : -Math.PI / 2,
         def: (roomIndex + i) % 3,
         label: room.title,
         size: i === 1 ? 'feature' : 'room',
@@ -317,7 +317,7 @@ async function createMediaFrame(slot, renderer, videoElements, transientUrls) {
 
   let W = 2.8;
   let H = 1.85;
-  if (slot.size === 'room') { W = 2.6; H = 1.8; }
+  if (slot.size === 'room') { W = 2.35; H = 1.72; }
   if (slot.size === 'feature') { W = 3.25; H = 2.08; }
   if (slot.size === 'hero') { W = 4.7; H = 2.85; }
 
