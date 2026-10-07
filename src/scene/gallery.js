@@ -81,8 +81,19 @@ function addSideRoom({ group, collisions, room, side, corridorHalfW, roomH, thic
   south.position.set(centerX, roomH / 2, room.z + roomD / 2);
   addWall(group, collisions, south);
 
-  const title = makeLabel(room.title.toUpperCase(), 3.9, 0.7, 54);
-  title.position.set(side === 'left' ? -corridorHalfW + 0.015 : corridorHalfW - 0.015, 3.95, room.z);
+  // Architectural doorway header so the room entrance reads as a portal,
+  // not as a floating label over an open hole.
+  const portalX = side === 'left' ? -corridorHalfW : corridorHalfW;
+  const lintel = box(thickness + 0.04, 0.78, room.doorWidth, wallMat);
+  lintel.position.set(portalX, roomH - 0.39, room.z);
+  group.add(lintel);
+
+  const title = makeLabel(room.title.toUpperCase(), 2.75, 0.48, 48);
+  title.position.set(
+    side === 'left' ? -corridorHalfW + 0.025 : corridorHalfW - 0.025,
+    roomH - 0.85,
+    room.z
+  );
   title.rotation.y = side === 'left' ? Math.PI / 2 : -Math.PI / 2;
   group.add(title);
 
@@ -185,29 +196,42 @@ export async function buildGallery(renderer) {
   ];
 
   const slots = [];
+
+  // Corridor frames must not sit in front of room doorways. A small extra
+  // clearance keeps frame edges, captions and spotlights away from portals.
+  const doorwayClearance = 1.05;
+  const doorwayAt = (side, z) => rooms.some((room) =>
+    room.side === side &&
+    Math.abs(z - room.z) < room.doorWidth / 2 + doorwayClearance
+  );
+
   timelineStations.forEach((station, i) => {
     const placard = makeLabel(station.label, 1.55, 0.46, 68);
     placard.position.set(0, 0.035, station.z);
     placard.rotation.x = -Math.PI / 2;
     group.add(placard);
 
-    // Main-timeline frames face inward from both corridor walls.
-    slots.push({
-      id: `timeline-${station.label}-left`,
-      pos: new THREE.Vector3(-corridorHalfW + 0.15, 2.45, station.z),
-      rotY: Math.PI / 2,
-      def: i % 3,
-      label: `${station.label} · Timeline`,
-      size: 'timeline',
-    });
-    slots.push({
-      id: `timeline-${station.label}-right`,
-      pos: new THREE.Vector3(corridorHalfW - 0.15, 2.45, station.z),
-      rotY: -Math.PI / 2,
-      def: (i + 1) % 3,
-      label: `${station.label} · Timeline`,
-      size: 'timeline',
-    });
+    if (!doorwayAt('left', station.z)) {
+      slots.push({
+        id: `timeline-${station.label}-left`,
+        pos: new THREE.Vector3(-corridorHalfW + 0.15, 2.45, station.z),
+        rotY: Math.PI / 2,
+        def: i % 3,
+        label: `${station.label} · Timeline`,
+        size: 'timeline',
+      });
+    }
+
+    if (!doorwayAt('right', station.z)) {
+      slots.push({
+        id: `timeline-${station.label}-right`,
+        pos: new THREE.Vector3(corridorHalfW - 0.15, 2.45, station.z),
+        rotY: -Math.PI / 2,
+        def: (i + 1) % 3,
+        label: `${station.label} · Timeline`,
+        size: 'timeline',
+      });
+    }
   });
 
   // Dedicated event/tournament rooms hold the extra story branches.
@@ -319,8 +343,8 @@ async function createMediaFrame(slot, renderer, videoElements, transientUrls) {
   group.add(screen);
 
   if (slot.label) {
-    const caption = makeLabel(slot.label, Math.min(W, 3.2), 0.34, 40);
-    caption.position.set(0, -H / 2 - 0.34, 0.075);
+    const caption = makeLabel(slot.label, Math.min(W, 2.9), 0.28, 34);
+    caption.position.set(0, -H / 2 - 0.29, 0.075);
     group.add(caption);
   }
 
