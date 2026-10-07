@@ -1,0 +1,136 @@
+import * as THREE from 'three';
+import { PlayerController } from './controls/player.js';
+import { createCollisionChecker } from './controls/collision.js';
+import { buildGallery, applyMedia, updateFit, defaultMediaFor } from './scene/gallery.js';
+import { saveSlotMedia, deleteSlotMedia } from './storage/db.js';
+
+const canvas = document.getElementById('canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+renderer.shadowMap.enabled = true;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xe4e1da);
+scene.fog = new THREE.Fog(0xe4e1da, 18, 38);
+
+const camera = new THREE.PerspectiveCamera(68, innerWidth/innerHeight, 0.1, 100);
+camera.position.set(0,1.65,8.6);
+const player = new PlayerController(camera, canvas);
+const clock = new THREE.Clock();
+const raycaster = new THREE.Raycaster();
+raycaster.far = 7;
+
+let gallery, collisionCheck, selectedFrame = null, cinematic = false, cinematicStart = 0;
+
+const start = document.getElementById('start');
+const editor = document.getElementById('editor');
+const editorTitle = document.getElementById('editorTitle');
+const mediaInput = document.getElementById('mediaInput');
+const fit = document.getElementById('fit');
+const badge = document.getElementById('cinematicBadge');
+
+async function init() {
+  gallery = await buildGallery(renderer);
+  scene.add(gallery.group);
+  collisionCheck = createCollisionChecker(gallery.collisionMeshes);
+  animate();
+}
+
+document.getElementById('enter').addEventListener('click', () => { start.classList.add('hidden'); player.lock(); });
+document.getElementById('resume').addEventListener('click', closeEditorAndResume);
+document.getElementById('closeEditor').addEventListener('click', closeEditorAndResume);
+
+document.getElementById('resetFrame').addEventListener('click', async () => {
+  if (!selectedFrame) return;
+  await deleteSlotMedia(selectedFrame.slot.id);
+  selectedFrame.fit = 'cover';
+  await applyMedia(selectedFrame, { url:defaultMediaFor(selectedFrame.slot), type:'image', fit:'cover' }, renderer, gallery.videoElements);
+  fit.value = 'cover';
+  document.getElementById('editorStatus').textContent = 'Frame reset to its default photograph.';
+});
+
+fit.addEventListener('change', async () => {
+  if (!selectedFrame) return;
+  selectedFrame.fit = fit.value;
+  updateFit(selectedFrame);
+  const file = mediaInput.files?.[0];
+  if (file) await saveSlotMedia({ slotId:selectedFrame.slot.id, blob:file, type:file.type, fit:fit.value, name:file.name });
+});
+
+mediaInput.addEventListener('change', async () => {
+  const file = mediaInput.files?.[0];
+  if (!file || !selectedFrame) return;
+  const url = URL.createObjectURL(file);
+  gallery.transientUrls.push(url);
+  await applyMedia(selectedFrame, { url, type:file.type, fit:fit.value, persistent:true }, renderer, gallery.videoElements);
+  await saveSlotMedia({ slotId:selectedFrame.slot.id, blob:file, type:file.type, fit:fit.value, name:file.name });
+  document.getElementById('editorStatus').textContent = `${file.name} saved locally to this frame.`;
+  mediaInput.value = '';
+});
+
+canvas.addEventListener('click', () => {
+  if (!player.locked || cinematic) return;
+  const frame = aimedFrame();
+  if (frame) openEditor(frame);
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'KeyC' && !editorIsOpen()) toggleCinematic();
+});
+
+function aimedFrame() {
+  raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+  const screens = gallery.frames.map(f => f.screen);
+  const hit = raycaster.intersectObjects(screens, false)[0];
+  return hit ? gallery.frames.find(f => f.screen === hit.object) : null;
+}
+
+function openEditor(frame) {
+  selectedFrame = frame;
+  player.unlock();
+  editorTitle.textContent = `Edit ${frame.slot.id}`;
+  fit.value = frame.fit || 'cover';
+  document.getElementById('editorStatus').textContent = 'Choose an image or video. It stays in this browser.';
+  editor.style.display = 'block';
+}
+
+function closeEditorAndResume() {
+  editor.style.display = 'none'; selectedFrame = null; player.lock();
+}
+function editorIsOpen() { return editor.style.display === 'block'; }
+
+function toggleCinematic() {
+  cinematic = !cinematic;
+  player.enabled = !cinematic;
+  badge.style.display = cinematic ? 'block' : 'none';
+  if (cinematic) { player.unlock(); cinematicStart = performance.now(); }
+  else player.lock();
+}
+
+function updateCinematic() {
+  if (!cinematic) return;
+  const t = ((performance.now() - cinematicStart) / 1000) % 24;
+  const a = (t / 24) * Math.PI * 2;
+  const z = 7.5 * Math.cos(a);
+  const x = 5.2 * Math.sin(a);
+  camera.position.set(x, 1.8 + Math.sin(a*2)*0.18, z);
+  const target = new THREE.Vector3(Math.sin(a+0.55)*4.5, 2.1, Math.cos(a+0.55)*7.5);
+  camera.lookAt(target);
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  player.update(dt, collisionCheck);
+  updateCinematic();
+  renderer.render(scene, camera);
+}
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight);
+});
+
+init();
