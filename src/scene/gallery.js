@@ -97,6 +97,17 @@ function addSideRoom({ group, collisions, room, side, corridorHalfW, roomH, thic
   title.rotation.y = side === 'left' ? Math.PI / 2 : -Math.PI / 2;
   group.add(title);
 
+  if (room.subtitle) {
+    const subtitle = makeLabel(room.subtitle, 3.25, 0.38, 38);
+    subtitle.position.set(
+      side === 'left' ? centerX + 0.02 : centerX - 0.02,
+      4.15,
+      room.z - roomD / 2 + 0.03
+    );
+    subtitle.rotation.y = 0;
+    group.add(subtitle);
+  }
+
   return { centerX, roomW, roomD, outerX };
 }
 
@@ -142,7 +153,15 @@ export async function buildGallery(renderer) {
 
   // Side rooms branch off the timeline for tournaments / special events.
   const rooms = [
-    { id: 'tournament-1', side: 'left',  z: -14, doorWidth: 3.1, title: 'Tournament Room' },
+    {
+      id: 'werbellinsee-55',
+      side: 'left',
+      z: -14,
+      doorWidth: 3.35,
+      title: '55. WerbellinseeCup',
+      subtitle: '18.–20. September 2026 · D-Jugend',
+      eventType: 'tournament',
+    },
     { id: 'event-1',      side: 'right', z: -5,  doorWidth: 3.1, title: 'Team Events' },
     { id: 'tournament-2', side: 'left',  z: 5,   doorWidth: 3.1, title: 'Cup Runs' },
     { id: 'highlights',   side: 'right', z: 14,  doorWidth: 3.1, title: 'Highlights' },
@@ -238,6 +257,9 @@ export async function buildGallery(renderer) {
   rooms.forEach((room, roomIndex) => {
     const g = roomGeometry[room.id];
     const roomSlots = [];
+    const specialCaptions = room.id === 'werbellinsee-55'
+      ? ['Anreise', 'Mannschaft', 'Gruppenphase', 'Spiele', 'Team-Momente']
+      : null;
 
     // Three frames on the outer wall.
     [-2.8, 0, 2.8].forEach((offset, i) => {
@@ -250,7 +272,7 @@ export async function buildGallery(renderer) {
         ),
         rotY: room.side === 'left' ? Math.PI / 2 : -Math.PI / 2,
         def: (roomIndex + i) % 3,
-        label: room.title,
+        label: specialCaptions ? specialCaptions[i] : room.title,
         size: i === 1 ? 'feature' : 'room',
       });
     });
@@ -263,7 +285,7 @@ export async function buildGallery(renderer) {
       pos: new THREE.Vector3(roomCenterX + innerShift, 2.42, room.z - g.roomD / 2 + 0.14),
       rotY: 0,
       def: (roomIndex + 1) % 3,
-      label: room.title,
+      label: specialCaptions ? specialCaptions[3] : room.title,
       size: 'room',
     });
     roomSlots.push({
@@ -271,7 +293,7 @@ export async function buildGallery(renderer) {
       pos: new THREE.Vector3(roomCenterX - innerShift, 2.42, room.z + g.roomD / 2 - 0.14),
       rotY: Math.PI,
       def: (roomIndex + 2) % 3,
-      label: room.title,
+      label: specialCaptions ? specialCaptions[4] : room.title,
       size: 'room',
     });
 
