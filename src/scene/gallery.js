@@ -31,6 +31,120 @@ function makeLabel(text, width = 3.4, height = 0.62, fontSize = 62) {
   return new THREE.Mesh(new THREE.PlaneGeometry(width, height), material);
 }
 
+
+function addTournamentTrophy(group, position) {
+  const gold = new THREE.MeshStandardMaterial({
+    color: 0xc89b3c,
+    roughness: 0.24,
+    metalness: 0.78,
+  });
+  const dark = new THREE.MeshStandardMaterial({
+    color: 0x24211d,
+    roughness: 0.55,
+    metalness: 0.08,
+  });
+
+  const pedestal = box(1.25, 1.0, 1.25, dark);
+  pedestal.position.copy(position);
+  pedestal.position.y = 0.5;
+  group.add(pedestal);
+
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.52, 0.18, 32), gold);
+  base.position.set(position.x, 1.08, position.z);
+  group.add(base);
+
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.16, 0.58, 24), gold);
+  stem.position.set(position.x, 1.45, position.z);
+  group.add(stem);
+
+  const cup = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.42, 0.24, 0.62, 32, 1, true),
+    gold
+  );
+  cup.position.set(position.x, 1.93, position.z);
+  group.add(cup);
+
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.055, 12, 36), gold);
+  rim.rotation.x = Math.PI / 2;
+  rim.position.set(position.x, 2.23, position.z);
+  group.add(rim);
+
+  const handleGeo = new THREE.TorusGeometry(0.28, 0.045, 10, 28, Math.PI);
+  const leftHandle = new THREE.Mesh(handleGeo, gold);
+  leftHandle.rotation.set(0, 0, Math.PI / 2);
+  leftHandle.position.set(position.x - 0.38, 1.96, position.z);
+  group.add(leftHandle);
+
+  const rightHandle = new THREE.Mesh(handleGeo, gold);
+  rightHandle.rotation.set(0, 0, -Math.PI / 2);
+  rightHandle.position.set(position.x + 0.38, 1.96, position.z);
+  group.add(rightHandle);
+
+  const plaque = makeLabel('55. WERBELLINSEECUP', 1.1, 0.24, 34);
+  plaque.position.set(position.x, 0.72, position.z + 0.631);
+  group.add(plaque);
+}
+
+function addWerbellinseeDecor(group, room, geo) {
+  const side = room.side;
+  const inward = side === 'left' ? 1 : -1;
+
+  const banner = makeLabel('55. WERBELLINSEECUP · 2026', 5.0, 0.75, 64);
+  banner.position.set(
+    geo.centerX,
+    4.55,
+    room.z + geo.roomD / 2 - 0.05
+  );
+  banner.rotation.y = Math.PI;
+  group.add(banner);
+
+  const resultHeader = makeLabel('TURNIER-ERGEBNIS', 3.15, 0.52, 48);
+  resultHeader.position.set(
+    geo.centerX,
+    3.95,
+    room.z - geo.roomD / 2 + 0.025
+  );
+  group.add(resultHeader);
+
+  const result1 = makeLabel('2. PLATZ · F.C. HERTHA 03 ZEHLENDORF', 4.4, 0.48, 40);
+  result1.position.set(
+    geo.centerX,
+    3.28,
+    room.z - geo.roomD / 2 + 0.027
+  );
+  group.add(result1);
+
+  const result2 = makeLabel('BESTER TORWART · HERTHA 03', 4.0, 0.45, 40);
+  result2.position.set(
+    geo.centerX,
+    2.70,
+    room.z - geo.roomD / 2 + 0.029
+  );
+  group.add(result2);
+
+  const result3 = makeLabel('SIEGER · FRIEDENAUER TSC 1886 (I)', 4.0, 0.42, 34);
+  result3.position.set(
+    geo.centerX,
+    2.15,
+    room.z - geo.roomD / 2 + 0.031
+  );
+  group.add(result3);
+
+  addTournamentTrophy(group, new THREE.Vector3(
+    geo.centerX + inward * 2.9,
+    0,
+    room.z + 0.2
+  ));
+
+  const pedestalCaption = makeLabel('TURNIER-MOMENT', 1.55, 0.3, 32);
+  pedestalCaption.position.set(
+    geo.centerX + inward * 2.9,
+    2.55,
+    room.z + 0.84
+  );
+  group.add(pedestalCaption);
+}
+
 function buildSegmentedSideWall(group, collisions, x, side, zMin, zMax, roomOpenings, roomH, thickness, wallMat) {
   const openings = [...roomOpenings]
     .sort((a, b) => a.z - b.z)
@@ -184,6 +298,11 @@ export async function buildGallery(renderer) {
     });
   }
 
+  const werbellinseeRoom = rooms.find((room) => room.id === 'werbellinsee-55');
+  if (werbellinseeRoom) {
+    addWerbellinseeDecor(group, werbellinseeRoom, roomGeometry[werbellinseeRoom.id]);
+  }
+
   // Dark band running down the center makes the chronological direction obvious.
   const timelineStrip = box(0.12, 0.014, corridorD - 2, accentMat);
   timelineStrip.position.set(0, 0.012, 0);
@@ -258,7 +377,7 @@ export async function buildGallery(renderer) {
     const g = roomGeometry[room.id];
     const roomSlots = [];
     const specialCaptions = room.id === 'werbellinsee-55'
-      ? ['Anreise', 'Mannschaft', 'Gruppenphase', 'Spiele', 'Team-Momente']
+      ? ['Anreise', 'TEAM-FOTO / VIDEO', 'Gruppenphase', 'Spiele', 'Team-Momente']
       : null;
 
     // Three frames on the outer wall.
@@ -273,7 +392,9 @@ export async function buildGallery(renderer) {
         rotY: room.side === 'left' ? Math.PI / 2 : -Math.PI / 2,
         def: (roomIndex + i) % 3,
         label: specialCaptions ? specialCaptions[i] : room.title,
-        size: i === 1 ? 'feature' : 'room',
+        size: room.id === 'werbellinsee-55' && i === 1
+          ? 'tournamentHero'
+          : (i === 1 ? 'feature' : 'room'),
       });
     });
 
@@ -319,7 +440,10 @@ export async function buildGallery(renderer) {
     frames.push(frame);
     group.add(frame.group);
 
-    const spot = new THREE.SpotLight(0xfff1d8, slot.size === 'hero' ? 48 : 30, 7.5, Math.PI / 5.7, 0.48, 1.7);
+    const spotPower = slot.size === 'hero'
+      ? 48
+      : (slot.size === 'tournamentHero' ? 42 : 30);
+    const spot = new THREE.SpotLight(0xfff1d8, spotPower, 7.5, Math.PI / 5.7, 0.48, 1.7);
     const normal = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), slot.rotY);
     spot.position.copy(slot.pos).add(normal.clone().multiplyScalar(1.45)).add(new THREE.Vector3(0, 1.45, 0));
     spot.target.position.copy(slot.pos);
@@ -341,6 +465,7 @@ async function createMediaFrame(slot, renderer, videoElements, transientUrls) {
   let H = 1.85;
   if (slot.size === 'room') { W = 2.35; H = 1.72; }
   if (slot.size === 'feature') { W = 3.25; H = 2.08; }
+  if (slot.size === 'tournamentHero') { W = 4.35; H = 2.55; }
   if (slot.size === 'hero') { W = 4.7; H = 2.85; }
 
   const b = 0.11;
