@@ -17,7 +17,7 @@ scene.background = new THREE.Color(0xe4e1da);
 scene.fog = new THREE.Fog(0xe4e1da, 18, 38);
 
 const camera = new THREE.PerspectiveCamera(68, innerWidth/innerHeight, 0.1, 100);
-camera.position.set(0,1.65,8.6);
+camera.position.set(0,1.65,22.2);
 const player = new PlayerController(camera, canvas);
 const clock = new THREE.Clock();
 const raycaster = new THREE.Raycaster();
@@ -112,13 +112,33 @@ function toggleCinematic() {
 
 function updateCinematic() {
   if (!cinematic) return;
-  const t = ((performance.now() - cinematicStart) / 1000) % 24;
-  const a = (t / 24) * Math.PI * 2;
-  const z = 7.5 * Math.cos(a);
-  const x = 5.2 * Math.sin(a);
-  camera.position.set(x, 1.8 + Math.sin(a*2)*0.18, z);
-  const target = new THREE.Vector3(Math.sin(a+0.55)*4.5, 2.1, Math.cos(a+0.55)*7.5);
-  camera.lookAt(target);
+
+  // A slow forward journey through the chronological corridor.
+  // The camera stays inside the central spine and gently looks into side rooms
+  // when it reaches them, rather than orbiting through walls.
+  const duration = 42;
+  const elapsed = ((performance.now() - cinematicStart) / 1000) % duration;
+  const p = elapsed / duration;
+  const z = THREE.MathUtils.lerp(22.0, -22.0, p);
+  const sway = Math.sin(p * Math.PI * 6) * 0.22;
+  camera.position.set(sway, 1.78 + Math.sin(p * Math.PI * 4) * 0.05, z);
+
+  let lookX = 0;
+  const roomLooks = [
+    { z: 14, x: 3.8 },
+    { z: 5, x: -3.8 },
+    { z: -5, x: 3.8 },
+    { z: -14, x: -3.8 },
+  ];
+  for (const stop of roomLooks) {
+    const distance = Math.abs(z - stop.z);
+    if (distance < 2.8) {
+      lookX = stop.x * (1 - distance / 2.8);
+      break;
+    }
+  }
+
+  camera.lookAt(new THREE.Vector3(lookX, 2.05, z - 5.0));
 }
 
 function animate() {
