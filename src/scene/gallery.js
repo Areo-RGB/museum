@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { getSlotMedia } from '../storage/db.js';
 
-const DEFAULT_MEDIA = ['/media/photo1.jpg', '/media/photo2.jpg', '/media/photo3.jpg'];
+const DEFAULT_MEDIA = ['/media/photo1.jpg', '/media/photo1.jpg', '/media/photo1.jpg'];
 
 function box(w, h, d, material) {
   return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
